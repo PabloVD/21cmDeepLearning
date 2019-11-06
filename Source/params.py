@@ -9,13 +9,14 @@ import os
 #--- GLOBAL PARAMETERS ---#
 
 # Number of simulations employed
-n_sims = 1#50
+n_sims = 50
 
 # Number of epochs for training
 n_epochs = 10
 
 # Redshifts taken into account
-redshifts = ["010.16"]#["010.16","015.78","020.18"]
+#redshifts = ["010.16","015.78","020.18"]
+redshifts = ["015.78"]
 
 # Number of channels, given by number of redshifts
 n_channels = len(redshifts)
@@ -34,6 +35,9 @@ batch_size = 15
 
 # Path
 path = os.getcwd()+"/" #"/Users/omena/Downloads/21_DeepLearning/"
+
+# Sufix for file names indicating some parameters
+sufix = "_n_sims_"+str(n_sims)+"n_epochs_"+str(n_epochs)+"n_redshifts"+str(n_channels)
 
 #--- OPTIONS ---#
 

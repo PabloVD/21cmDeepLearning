@@ -5,13 +5,15 @@
 # Last modification: 15/10/19
 #-------------------------------------------
 
-import time
+import time, datetime
 from Source import UNet
 from Source.functions import *
 
 #--- MAIN ---#
 
 time_ini = time.time()
+if not os.path.exists(path+"Plots"):
+    os.system("mkdir "+path+"Plots")
 
 # Load fields and convert to tensors
 print("Loading dataset...")
@@ -33,7 +35,7 @@ if training:
     print("Learning...")
     # Load the best model so far if wanted
     if load_model:
-        state_dict = torch.load('bestmodel.pt')
+        state_dict = torch.load("bestmodel"+sufix+".pt")
         model.load_state_dict(state_dict)
     train_losses, valid_losses = learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs)
 
@@ -47,5 +49,4 @@ if training:
     # Show validation/training trend
     loss_trend(train_losses,valid_losses,test_loss)
 
-
-print("Minutes elapsed:",(time.time()-time_ini)/60.)
+print("Time elapsed:",datetime.timedelta(seconds=time.time()-time_ini))

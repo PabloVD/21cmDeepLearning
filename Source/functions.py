@@ -6,7 +6,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob, os, time, random
+import random
 import torch
 import torch.optim as optim
 import torch.utils.data as utils
@@ -134,17 +134,17 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
         # Save model if it has improved
         if valid_loss <= valid_loss_min:
             print("Validation loss decreased ({:.2e} --> {:.2e}).  Saving model ...".format(valid_loss_min,valid_loss))
-            torch.save(model.state_dict(), path+"bestmodel.pt")
+            torch.save(model.state_dict(), path+"bestmodel"+sufix+".pt")
             valid_loss_min = valid_loss
 
-    np.savetxt(path+"Losses.dat",np.transpose([np.array(train_losses),np.array(valid_losses)]))
+    np.savetxt(path+"Losses"+sufix+".dat",np.transpose([np.array(train_losses),np.array(valid_losses)]))
 
     return train_losses, valid_losses
 
 # Loop where testing is computed
 def testing_loop(model,test_loader,lossfunc):
     # Load the best model
-    state_dict = torch.load(path+'bestmodel.pt')
+    state_dict = torch.load(path+"bestmodel"+sufix+".pt")
     model.load_state_dict(state_dict)
 
     # Test the model
@@ -184,7 +184,7 @@ def plot_slices(array1,array2,array3,index,epoch):
         ax_1.set_title(inputlabel)
         ax_2.set_title(targetlabel+", true")
         ax_3.set_title(targetlabel+", predicted")
-        plt.savefig(path+"Plots/2Dslices_z+"+z+"_index_"+str(index)+"_epoch_"+str(epoch)+".pdf")
+        plt.savefig(path+"Plots/2Dslices_z+"+z+"_index_"+str(index)+"_epoch_"+str(epoch)+sufix+".pdf")
         plt.close(fig)
 
 # Show validation/training trend
@@ -196,4 +196,4 @@ def loss_trend(train_losses,valid_losses,test_loss):
 
     ax_loss.legend(frameon=False)
     ax_loss.set_title("Test loss={:.2e}".format(test_loss))
-    fig_loss.savefig(path+"Plots/TrainValidLoss.pdf", bbox_inches='tight')
+    fig_loss.savefig(path+"Plots/TrainValidLoss"+sufix+".pdf", bbox_inches='tight')
