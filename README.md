@@ -8,10 +8,10 @@ The files included are the following:
 
 - DM2HI.py: train and test the network.
 
-- Source/functions.py: includes some useful routines.
+- Source/functions.py: includes some useful functions, such as routines for loading the data and training the net.
+
+- Source/plot_routines.py: includes some plotting routines.
 
 - Source/params.py: parameters to be set by the user.
 
-- Source/unet_model.py: CNN UNet architecture.
-
-- Source/unet_parts.py: parts of the CNN.
+- Source/Unet.py: CNN UNet architecture.
