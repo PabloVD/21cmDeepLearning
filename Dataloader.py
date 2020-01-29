@@ -11,35 +11,7 @@ from Source.params import *
 
 time_ini = time.time()
 
-path_globus = "Files_DM2HI/"#"GlobusFiles/"
-path_fields = "Fields/"
-
-# Read parameters file and normalize the paramters to (0,1)
-def get_params():
-
-    paramfile = "GlobusFiles/params_simulation_mturn_lumx_ngamma.txt"
-    paramstab = np.loadtxt(paramfile)
-
-    p_max, p_min = [], []
-    for i in range(1,4):
-        p_max.append(np.amax(paramstab[:,i]))
-        p_min.append(np.amin(paramstab[:,i]))
-
-
-    sims = []
-    for numsim in range(1,n_sims+1):
-
-        filename = "GlobusFiles/Simulation_"+str(numsim)+"/dTb_z015.78"
-        if os.path.exists(filename):
-
-            par = paramstab[numsim-1][1:4]
-            par = np.array([ (par[i]-p_min[i])/(p_max[i] - p_min[i]) for i in range(3) ])
-            #sims.append(par)       # 1 time, without data augmentation
-            for i in range(0,8):
-                sims.append(par)    # 8 times, for data augmentation
-
-    np.save("Inputfiles/params.npy",np.array(sims))
-
+nsims = 1000
 
 def get_array(filename,outfile):
 
@@ -70,11 +42,11 @@ def get_array(filename,outfile):
 
         else: print(filename," doesn't exist!")
 
-# Read dTb files
+# Read dTb and delta files
 def get_data():
 
     sims = []
-    for numsim in range(1,n_sims+1):
+    for numsim in range(1,nsims+1):
 
         if numsim % 5 == 0: print("Simulation",numsim)
 
@@ -88,8 +60,26 @@ def get_data():
             get_array(dTb_filename,dTb_outfile)
             get_array(delta_filename,delta_outfile)
 
+# This function ensures that we have the same number of dTb arrays for the correspondent delta arrays (some simulations did not produced both)
+# Removes the arrays of the simulations which present this kind of problem
+def check_arrays():
+    for numsim in range(1,nsims+1):
+        for z in redshifts:
+            dTb_outfile = path_fields+"Simulation_"+str(numsim)+"_dTb_z"+z
+            delta_outfile = path_fields+"Simulation_"+str(numsim)+"_delta_z"+z
 
-#get_params()
+            dTb_outfiles = glob.glob(dTb_outfile+"*")
+            delta_outfiles = glob.glob(delta_outfile+"*")
+
+            if len(dTb_outfiles)!=len(delta_outfiles):
+                print("Simulation_"+str(numsim)+" does not have the same number of delta arrays and dTb arrays. Removing them...")
+                for file in dTb_outfiles:
+                    os.system("rm "+file)
+                for file in delta_outfiles:
+                    os.system("rm "+file)
+
 get_data()
+
+check_arrays()
 
 print("Minutes elapsed:",(time.time()-time_ini)/60.)

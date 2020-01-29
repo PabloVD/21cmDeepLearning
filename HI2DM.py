@@ -6,8 +6,8 @@
 #-------------------------------------------
 
 import time, datetime
-from Source import UNet
 from Source.functions import *
+from Source.Unet import UNet2
 
 #--- MAIN ---#
 
@@ -27,16 +27,33 @@ totaldata = utils.TensorDataset(tensor_x.float(),tensor_y.float())
 train_loader, valid_loader, test_loader = split_datasets(totaldata)
 
 # Choose model and loss function
-model = UNet(n_channels=n_channels, n_classes=n_channels)
+#model = UNet(n_channels=n_channels, n_classes=n_channels)
+model = UNet2(n_channels, n_channels)
 lossfunc = nn.MSELoss()
+
+if train_on_gpu:
+    model.cuda()
+
+network_total_params = sum(p.numel() for p in model.parameters())
+print('Total number of parameters in the model = %d'%network_total_params)
+print("Data loaded. Time elapsed:",datetime.timedelta(seconds=time.time()-time_ini))
+
+# Print the memory (in Gb) being used now:
+import psutil
+process = psutil.Process()
+print("Memory being used (Gb):",process.memory_info().rss/1.e9)
 
 # Train the net
 if training:
     print("Learning...")
     # Load the best model so far if wanted
     if load_model:
-        state_dict = torch.load("bestmodel"+sufix+".pt")
-        model.load_state_dict(state_dict)
+        if os.path.exists(bestmodel):
+            print("Loading previous best model")
+            state_dict = torch.load(bestmodel)
+            model.load_state_dict(state_dict)
+        else:
+            print("No previous model to load")
     train_losses, valid_losses = learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs)
 
 # Test the net
@@ -49,4 +66,4 @@ if training:
     # Show validation/training trend
     loss_trend(train_losses,valid_losses,test_loss)
 
-print("Time elapsed:",datetime.timedelta(seconds=time.time()-time_ini))
+print("Finished. Time elapsed:",datetime.timedelta(seconds=time.time()-time_ini))

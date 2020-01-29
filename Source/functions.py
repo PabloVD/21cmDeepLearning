@@ -4,21 +4,27 @@
 # Started 23/9/19
 #----------------------------------
 
-import numpy as np
-import matplotlib.pyplot as plt
-import random
+import random, glob
 import torch
 import torch.optim as optim
 import torch.utils.data as utils
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch.nn as nn
-from sklearn.metrics import r2_score
-from Source.params import *
+#from sklearn.metrics import r2_score
+from Source.plot_routines import *
 
 # check if CUDA is available
 train_on_gpu = torch.cuda.is_available()
 #if not train_on_gpu:    print('CUDA is not available.  Training on CPU ...')
 #else:   print('CUDA is available!  Training on GPU ...')
+
+# use GPUs if available
+if train_on_gpu:
+    print('CUDA is available! Training on GPU.')
+    device = torch.device('cuda')
+else:
+    print('CUDA is not available. Training on CPU.')
+    device = torch.device('cpu')
 
 #--- MANIPULATING DATA ---#
 
@@ -38,11 +44,15 @@ def data_augmentation(array,n_channels):
 def load_field(fieldtype):
     fields = []
     for numsim in range(1,n_sims+1):
+
+        arrayssim = glob.glob(path_fields+"Simulation_"+str(numsim)+"*")
+        if len(arrayssim)==0: continue # Pass if there are no arrays of these simulation
+
         for bin in range(0,DIM,20):
             for coord in ["x","y","z"]:
                 fieldsz = []
                 for z in redshifts:
-                    filename = path+"Fields/Simulation_"+str(numsim)+"_"+fieldtype+"_z"+z+"_"+coord+"_bin_"+str(bin)+".npy"
+                    filename = path_fields+"Simulation_"+str(numsim)+"_"+fieldtype+"_z"+z+"_"+coord+"_bin_"+str(bin)+".npy"
                     if os.path.exists(filename):
                         field = np.load(filename)
                         fieldsz.append(field)
@@ -94,8 +104,8 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
     train_losses, valid_losses = [], []
     valid_loss_min = np.Inf
 
-    if train_on_gpu:
-        model.cuda()
+    #if train_on_gpu:
+    #    model.cuda()
 
     # Start learning!
     for epoch in range(1,n_epochs+1):
@@ -122,7 +132,10 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
                 output = model(input)
                 loss = lossfunc(output, target)
                 valid_loss+=loss.item()
-                if plotsli: plot_slices(input,target,output,0,epoch)
+
+                #if plot_sli: plot_slices(input,target,output,0,epoch)
+                #if plot_pow: plot_powerspectrum(target,output,0,epoch)
+                #if plot_pdf: plot_pdf(target,output,0,epoch)
 
         train_loss = train_loss/len(train_loader.sampler)
         valid_loss = valid_loss/len(valid_loader.sampler)
@@ -134,7 +147,7 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
         # Save model if it has improved
         if valid_loss <= valid_loss_min:
             print("Validation loss decreased ({:.2e} --> {:.2e}).  Saving model ...".format(valid_loss_min,valid_loss))
-            torch.save(model.state_dict(), path+"bestmodel"+sufix+".pt")
+            torch.save(model.state_dict(), bestmodel)
             valid_loss_min = valid_loss
 
     np.savetxt(path+"Losses"+sufix+".dat",np.transpose([np.array(train_losses),np.array(valid_losses)]))
@@ -144,7 +157,7 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
 # Loop where testing is computed
 def testing_loop(model,test_loader,lossfunc):
     # Load the best model
-    state_dict = torch.load(path+"bestmodel"+sufix+".pt")
+    state_dict = torch.load(bestmodel)
     model.load_state_dict(state_dict)
 
     # Test the model
@@ -159,41 +172,19 @@ def testing_loop(model,test_loader,lossfunc):
             loss = lossfunc(output, target)
             test_loss+=loss.item()
             for tar in target:
-                true_target.append(tar.numpy())
+                true_target.append(tar.cpu().numpy())
             for tar in output:
-                predicted_target.append(tar.numpy())
-            if plotsli: plot_slices(input,target,output,0,"test")
+                predicted_target.append(tar.cpu().numpy())
+
+            #if plot_sli: plot_slices(input,target,output,0,"test")
+            #if plot_pow: plot_powerspectrum(target,output,0,"test")
+            #if plot_pdf: plot_pdf(target,output,0,"test")
+
+        if plot_sli: plot_slices(input,target,output,0,"test")
+        if plot_pow: plot_powerspectrum(target,output,0,"test")
+        if plot_pdf: plot_pdf(target,output,0,"test")
 
     true_target, predicted_target = np.array(true_target), np.array(predicted_target)
     test_loss = test_loss/len(test_loader.dataset)
     print('Test Loss: {:.2e}\n'.format(test_loss))
     return true_target, predicted_target, test_loss
-
-#--- PLOTS ---#
-
-# Plot 2 2D slices of input, true target and predicted target respectively
-def plot_slices(array1,array2,array3,index,epoch):
-    for iz, z in enumerate(redshifts):
-        fig, (ax_1, ax_2, ax_3) = plt.subplots(1, 3, figsize=(9., 3.), constrained_layout=True)
-        ax_1.imshow( array1[index,iz] )
-        ax_2.imshow( array2[index,iz] )
-        ax_3.imshow( array3[index,iz] )
-        err = (array2[index,iz]-array3[index,iz])/array2[index,iz]
-        fig.suptitle("Mean relative error ={:.2f}".format(err.mean()))
-        inputlabel, targetlabel = r"$\delta T_b$", r"$\delta$"
-        ax_1.set_title(inputlabel)
-        ax_2.set_title(targetlabel+", true")
-        ax_3.set_title(targetlabel+", predicted")
-        plt.savefig(path+"Plots/2Dslices_z+"+z+"_index_"+str(index)+"_epoch_"+str(epoch)+sufix+".pdf")
-        plt.close(fig)
-
-# Show validation/training trend
-def loss_trend(train_losses,valid_losses,test_loss):
-    fig_loss, (ax_loss) = plt.subplots(1, 1)
-
-    ax_loss.semilogy(train_losses, label='Training loss')
-    ax_loss.semilogy(valid_losses, label='Validation loss')
-
-    ax_loss.legend(frameon=False)
-    ax_loss.set_title("Test loss={:.2e}".format(test_loss))
-    fig_loss.savefig(path+"Plots/TrainValidLoss"+sufix+".pdf", bbox_inches='tight')

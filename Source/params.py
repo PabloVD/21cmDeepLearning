@@ -9,13 +9,13 @@ import os
 #--- GLOBAL PARAMETERS ---#
 
 # Number of simulations employed
-n_sims = 50
+n_sims = 1000
 
 # Number of epochs for training
-n_epochs = 10
+n_epochs = 2
 
 # Redshifts taken into account
-#redshifts = ["010.16","015.78","020.18"]
+#redshifts = ["010.16"]#,"020.18"]
 redshifts = ["015.78"]
 
 # Number of channels, given by number of redshifts
@@ -33,19 +33,36 @@ test_size = 0.15
 # Size of the batches
 batch_size = 15
 
-# Path
+#--- PATHS ---#
+
+# General path
 path = os.getcwd()+"/" #"/Users/omena/Downloads/21_DeepLearning/"
 
+# Path to Globus files
+path_globus = "/tigress/pdomingo/GlobusFiles/"
+
+# Path to fields folder
+path_fields = "/tigress/pdomingo/Fields/"   #"/home/pdomingo/DeepLearning21/FieldsNew/"
+
 # Sufix for file names indicating some parameters
-sufix = "_n_sims_"+str(n_sims)+"n_epochs_"+str(n_epochs)+"n_redshifts"+str(n_channels)
+sufix = "_sims_"+str(n_sims)+"_epochs_"+str(n_epochs)+"_redshifts_"+str(n_channels)
+
+# Name of best model
+bestmodel = path+"bestmodel"+sufix+".pt"
 
 #--- OPTIONS ---#
 
 # 1 if data augmentation is used
-data_aug = 1
+data_aug = 0
 
 # 1 for plotting slices (only using UNet)
-plotsli = 1
+plot_sli = 1
+
+# 1 for plotting power spectrum (only using UNet)
+plot_pow = 1
+
+# 1 for plotting pdf (only using UNet)
+plot_pdf = 1
 
 # 1 for training, otherwise it only tests
 training = 1
