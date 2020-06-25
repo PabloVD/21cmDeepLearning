@@ -1,68 +1,76 @@
 #----------------------------------
 # Useful functions and routines
 # Author: Pablo Villanueva Domingo
-# Started 23/9/19
+# Last update: 25/6/20
 #----------------------------------
 
 import random, glob
+import numpy as np
 import torch
-import torch.optim as optim
 import torch.utils.data as utils
+from torch.optim import Adam, lr_scheduler
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch.nn as nn
-#from sklearn.metrics import r2_score
-from Source.plot_routines import *
+from Source.params import *
 
-# check if CUDA is available
+# Set random seed
+random_seed = 123
+torch.manual_seed(random_seed)
+np.random.seed(random_seed)
+random.seed(random_seed)
+
+# Use CUDA GPUs if available
 train_on_gpu = torch.cuda.is_available()
-#if not train_on_gpu:    print('CUDA is not available.  Training on CPU ...')
-#else:   print('CUDA is available!  Training on GPU ...')
-
-# use GPUs if available
 if train_on_gpu:
-    print('CUDA is available! Training on GPU.')
+    print('\nCUDA is available! Training on GPU.')
     device = torch.device('cuda')
 else:
-    print('CUDA is not available. Training on CPU.')
+    print('\nCUDA is not available. Training on CPU.')
     device = torch.device('cpu')
+
 
 #--- MANIPULATING DATA ---#
 
-# Rotates and flips in all the 8 possible ways for a number of channels n_channels
-def data_augmentation(array,n_channels):
-    transf = []
-    for i in range(0,4):
-        transfz, transfzflip = [], []
-        for j in range(n_channels):
-            transfz.append(np.rot90(array[j],i))
-            transfzflip.append(np.rot90(array[j],i))
-        transf.append(transfz)
-        transf.append(transfzflip)
-    return transf
-
-# Load a field of type fieldtype
+# Load all the fields of type fieldtype (namely, 21 cm map or matter density field)
 def load_field(fieldtype):
-    fields = []
+
+    # Count number of useful simulations (some of the simulations may not be complete and not used)
+    numsimsreal = 0
+    for numsim in range(1,n_sims+1):
+        filename = path_fields+"Simulation_"+str(numsim)+"/delta_z"+redshifts[0]+"_bin_0.npy"
+        if os.path.exists(filename):
+            numsimsreal+=1
+    numsimsreal*=20     # 20 slices per simulation
+
+    if data_aug:    numsimsreal*=8  # 8 possible transformations
+    ind = 0
+    fields = np.empty((numsimsreal, 1, DIM, DIM), dtype=np.float32)
+
     for numsim in range(1,n_sims+1):
 
-        arrayssim = glob.glob(path_fields+"Simulation_"+str(numsim)+"*")
-        if len(arrayssim)==0: continue # Pass if there are no arrays of these simulation
+        # Pass if there are no arrays of these simulation
+        arrayssim = glob.glob(path_fields+"Simulation_"+str(numsim)+"/*")
+        if len(arrayssim)==0:
+            continue
+            print("No fields in simulation",numsim)
 
-        for bin in range(0,DIM,20):
-            for coord in ["x","y","z"]:
-                fieldsz = []
-                for z in redshifts:
-                    filename = path_fields+"Simulation_"+str(numsim)+"_"+fieldtype+"_z"+z+"_"+coord+"_bin_"+str(bin)+".npy"
-                    if os.path.exists(filename):
-                        field = np.load(filename)
-                        fieldsz.append(field)
-                    else:   print(filename+" doesn't exist.")
-                if data_aug:
-                    fields.extend( data_augmentation(fieldsz,n_channels) )    # with data augmentation
-                else:
-                    fields.append( fieldsz )                       # without data augmentation
+        for bin in range(0,DIM,10):
+            for z in redshifts:
+                filename = path_fields+"Simulation_"+str(numsim)+"/"+fieldtype+"_z"+z+"_bin_"+str(bin)+".npy"
+                if os.path.exists(filename):
+                    field = np.load(filename)
+                    if data_aug:    # If data augmentation, employ 8 possible rigid transformations in 2D
+                        for i in range(0,4):    # original + 3 rotations
+                            fields[ind+i] = np.rot90(field,i).reshape(1, DIM, DIM)
+                        for i in range(4,8):    # inversion of the original + 3 rotations
+                            fields[ind+i] = np.rot90(np.flip(field,0),i).reshape(1, DIM, DIM)
+                        ind+=8
+                    else:
+                        fields[ind] = field.reshape(1, DIM, DIM)
+                        ind+=1
+                else:   print(filename+" doesn't exist.")#"""
 
-    return np.array(fields)
+    return fields
 
 # Normalize the inputs
 def normalize_field(fields):
@@ -94,18 +102,20 @@ def split_datasets(totaldata):
     return train_loader, valid_loader, test_loader
 
 
-#--- ML LOOPS ---#
+#--- MACHINE LEARNING LOOPS ---#
 
-# Loop where training and validation are computed
-def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
+# Loop where training and validation are perfomed
+def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs,name_model=bestmodel):
 
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    # Adam optimizer
+    # The filter ensures that only trainable layers are updated
+    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate, betas=(0.5, 0.999), weight_decay=weight_decay)
+
+    # Learning rate scheduler, suppresses by 0.1 the learning rate after n_epochs/4 epochs
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=int(n_epochs/4), gamma=0.1)
 
     train_losses, valid_losses = [], []
     valid_loss_min = np.Inf
-
-    #if train_on_gpu:
-    #    model.cuda()
 
     # Start learning!
     for epoch in range(1,n_epochs+1):
@@ -133,9 +143,7 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
                 loss = lossfunc(output, target)
                 valid_loss+=loss.item()
 
-                #if plot_sli: plot_slices(input,target,output,0,epoch)
-                #if plot_pow: plot_powerspectrum(target,output,0,epoch)
-                #if plot_pdf: plot_pdf(target,output,0,epoch)
+        scheduler.step()
 
         train_loss = train_loss/len(train_loader.sampler)
         valid_loss = valid_loss/len(valid_loader.sampler)
@@ -147,20 +155,28 @@ def learning_loop(model,train_loader,valid_loader,lossfunc,n_epochs):
         # Save model if it has improved
         if valid_loss <= valid_loss_min:
             print("Validation loss decreased ({:.2e} --> {:.2e}).  Saving model ...".format(valid_loss_min,valid_loss))
-            torch.save(model.state_dict(), bestmodel)
+            torch.save(model.state_dict(), name_model)
             valid_loss_min = valid_loss
 
-    np.savetxt(path+"Losses"+sufix+".dat",np.transpose([np.array(train_losses),np.array(valid_losses)]))
+        # Write loss to a file in real time
+        f = open("lossfile"+sufix+".dat", 'a')
+        f.write('%d %.5e %.5e\n'%(epoch, train_loss, valid_loss))
+        f.close()
+
+    np.savetxt(path_outputs+"Losses"+sufix+".dat",np.transpose([np.array(train_losses),np.array(valid_losses)]))
 
     return train_losses, valid_losses
 
-# Loop where testing is computed
-def testing_loop(model,test_loader,lossfunc):
+# Loop for testing the trained network
+# Use export_map=1 for exporting samples of 2D maps. Only with the U-Net, not with the astro net
+def testing_loop(model,test_loader,lossfunc,name_model=bestmodel,export_map=1):
+
     # Load the best model
-    state_dict = torch.load(bestmodel)
+    state_dict = torch.load(name_model, map_location=device)
     model.load_state_dict(state_dict)
 
     # Test the model
+    ind_tar, ind_out = 0, 0
     test_loss = 0.0
     true_target, predicted_target = [], []
     with torch.no_grad():
@@ -171,18 +187,20 @@ def testing_loop(model,test_loader,lossfunc):
             output = model(input)
             loss = lossfunc(output, target)
             test_loss+=loss.item()
+
+            # Store some outputs and export some sample maps
+            if export_map:      # Only export one input per batch (just for plots)
+                np.save(path_outputs+"Outputs"+sufix+"/slice_input_"+str(ind_tar),input[0].cpu().reshape(200,200))
             for tar in target:
                 true_target.append(tar.cpu().numpy())
-            for tar in output:
-                predicted_target.append(tar.cpu().numpy())
-
-            #if plot_sli: plot_slices(input,target,output,0,"test")
-            #if plot_pow: plot_powerspectrum(target,output,0,"test")
-            #if plot_pdf: plot_pdf(target,output,0,"test")
-
-        if plot_sli: plot_slices(input,target,output,0,"test")
-        if plot_pow: plot_powerspectrum(target,output,0,"test")
-        if plot_pdf: plot_pdf(target,output,0,"test")
+                if export_map:
+                    np.save(path_outputs+"Outputs"+sufix+"/slice_target_"+str(ind_tar),tar.cpu().reshape(200,200))
+                ind_tar+=1
+            for out in output:
+                predicted_target.append(out.cpu().numpy())
+                if export_map:
+                    np.save(path_outputs+"Outputs"+sufix+"/slice_output_"+str(ind_out),out.cpu().reshape(200,200))
+                ind_out+=1
 
     true_target, predicted_target = np.array(true_target), np.array(predicted_target)
     test_loss = test_loss/len(test_loader.dataset)
