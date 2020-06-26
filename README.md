@@ -2,7 +2,7 @@
 
 Python codes to extract the underlying matter density map from a 21 cm intensity field, making use of a convolutional neural network (CNN) with the U-Net architecture. Implemented in Pytorch. The astrophysical parameters of the simulations can also be predicted with a secondary CNN. The simulations of matter density and 21 cm maps have been performed with the code [21cmFAST](https://github.com/andreimesinger/21cmFAST/commits/master).
 
-See the paper [arXiv:XXXX.XXXX](arXiv:XXXX.XXXX) for more details.
+See the paper [arXiv:2006.14305](https://arxiv.org/abs/2006.14305) for more details.
 
 ## Description of the scripts
 
@@ -43,7 +43,7 @@ For some plots and statistics, the following packages are also needed:
 ## Usage
 
 You may want to run the scripts in the following order:
-1. Run the 21cmFAST simulations and store them in `path_simulations` (path defined in params.py).
+1. Run the 21cmFAST simulations and store them in `path_simulations` (path defined in `params.py`).
 2. Run `Dataloader.py` to extract the relevant fields for the required redshifts.
 3. Run `HI2DM.py` to train the U-Net for predicting the matter density field given a 21 cm map.
 4. Run `Plotter.py` for plotting several statistics and samples of the maps.
