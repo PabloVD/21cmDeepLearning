@@ -7,6 +7,8 @@ Python codes to extract the underlying matter density map from a 21 cm intensity
 
 See the paper [ApJ 907 44 (2021)](https://iopscience.iop.org/article/10.3847/1538-4357/abd245), [arXiv:2006.14305](https://arxiv.org/abs/2006.14305) for more details.
 
+![sample maps](sample_maps.png)
+
 ## Description of the scripts
 
 The files included are the following:
