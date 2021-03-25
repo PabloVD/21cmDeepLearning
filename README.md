@@ -1,7 +1,7 @@
 
 # 21cmDeepLearning
 
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4569964.svg)](https://zenodo.org/record/4569964) [![arXiv](https://img.shields.io/badge/arXiv-2006.14305-B31B1B.svg)](http://arxiv.org/abs/2006.14305)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.4569964.svg)](https://zenodo.org/record/4569964) [![ASCL](https://img.shields.io/badge/ascl-2103.001-blue.svg?colorB=262255)](https://ascl.net/2103.001) [![arXiv](https://img.shields.io/badge/arXiv-2006.14305-B31B1B.svg)](http://arxiv.org/abs/2006.14305)
 
 Python codes to extract the underlying matter density map from a 21 cm intensity field, making use of a convolutional neural network (CNN) with the U-Net architecture. Implemented in Pytorch. The astrophysical parameters of the simulations can also be predicted with a secondary CNN. The simulations of matter density and 21 cm maps have been performed with the code [21cmFAST](https://github.com/andreimesinger/21cmFAST/commits/master).
 
